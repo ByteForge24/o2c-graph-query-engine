@@ -1,6 +1,7 @@
 {
   "version": 2,
-  "buildCommand": "pnpm --filter web build",
+  "buildCommand": "pnpm --filter graph build && pnpm --filter llm build && pnpm --filter web build",
   "installCommand": "pnpm install --frozen-lockfile"
 }
+
 
