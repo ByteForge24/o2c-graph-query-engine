@@ -557,44 +557,83 @@ export default function ChatPanel() {
             </div>
           )}
 
-          {/* Paths */}
+          {/* Paths - Flow View */}
           {response.data?.paths && response.data.paths.length > 0 && (
             <div className="rounded border border-purple-200 bg-purple-50 p-3">
               <div className="text-sm font-medium text-purple-900 mb-2">
-                Paths ({response.data.paths.length})
+                Flow View ({response.data.paths.length})
               </div>
-              <div className="space-y-2">
-                {response.data.paths.slice(0, 2).map((path: any, idx: number) => (
-                  <div
-                    key={idx}
-                    className="rounded bg-white p-2 border border-purple-100 text-xs space-y-1"
-                  >
-                    <div>
-                      <span className="font-medium text-purple-900">Length:</span>{' '}
-                      <span className="font-mono text-purple-700">
-                        {path.nodeIds ? path.nodeIds.length : 0} nodes
-                      </span>
-                    </div>
-                    <div>
-                      <span className="font-medium text-purple-900">Nodes:</span>
-                      <div className="font-mono text-purple-700 text-xs mt-1 overflow-x-auto">
-                        {path.nodeIds ? path.nodeIds.join(' → ') : 'N/A'}
+              <div className="space-y-3">
+                {response.data.paths.slice(0, 2).map((path: any, idx: number) => {
+                  const nodeIds = path.nodeIds || [];
+                  const edgeTypes = path.edgeTypes || [];
+
+                  return (
+                    <div key={idx} className="rounded bg-white p-3 border border-purple-100">
+                      {/* Path Length Badge */}
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="inline-block px-2 py-0.5 rounded-full bg-purple-200 text-purple-800 font-medium text-xs">
+                          {nodeIds.length} nodes
+                        </span>
+                        <span className="text-xs text-gray-600">
+                          {edgeTypes.length} hop{edgeTypes.length !== 1 ? 's' : ''}
+                        </span>
                       </div>
-                    </div>
-                    {path.edgeTypes && path.edgeTypes.length > 0 && (
-                      <div>
-                        <span className="font-medium text-purple-900">Edges:</span>
-                        <div className="font-mono text-purple-700 text-xs mt-1">
-                          {path.edgeTypes.join(', ')}
+
+                      {/* Visual Flow */}
+                      <div className="overflow-x-auto">
+                        <div className="flex items-center gap-1 pb-2 min-w-min">
+                          {nodeIds.map((nodeId: string, nodeIdx: number) => {
+                            const isStart = nodeIdx === 0;
+                            const isEnd = nodeIdx === nodeIds.length - 1;
+
+                            return (
+                              <div key={nodeIdx} className="flex items-center gap-1">
+                                {/* Node Pill */}
+                                <div
+                                  className={`px-2 py-1 rounded-full font-mono text-xs whitespace-nowrap border-2 ${
+                                    isStart
+                                      ? 'bg-green-100 border-green-400 text-green-900 font-medium'
+                                      : isEnd
+                                      ? 'bg-red-100 border-red-400 text-red-900 font-medium'
+                                      : 'bg-gray-100 border-gray-300 text-gray-800'
+                                  }`}
+                                  title={nodeId}
+                                >
+                                  {nodeId.length > 12 ? nodeId.slice(0, 10) + '…' : nodeId}
+                                </div>
+
+                                {/* Arrow + Edge Type (if not last node) */}
+                                {nodeIdx < nodeIds.length - 1 && (
+                                  <div className="flex flex-col items-center gap-0.5">
+                                    <span className="text-purple-500 font-bold text-xs">→</span>
+                                    {edgeTypes[nodeIdx] && (
+                                      <span className="text-xs font-medium text-purple-700 whitespace-nowrap">
+                                        {edgeTypes[nodeIdx]}
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
-                    )}
-                  </div>
-                ))}
+
+                      {/* Full Node Sequence (compact reference) */}
+                      {nodeIds.length > 3 && (
+                        <div className="mt-2 pt-2 border-t border-purple-100 text-xs text-gray-600">
+                          <span className="font-medium">Full path:</span>{' '}
+                          <span className="font-mono text-gray-700">{nodeIds.join(' → ')}</span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
               {response.data.paths.length > 2 && (
                 <div className="text-xs text-purple-600 mt-2 italic">
-                  + {response.data.paths.length - 2} more
+                  + {response.data.paths.length - 2} more path{response.data.paths.length - 2 !== 1 ? 's' : ''}
                 </div>
               )}
             </div>
