@@ -81,3 +81,39 @@ export async function runNlQuery(input: string): Promise<NlQueryApiResponse> {
     body: JSON.stringify({ input }),
   });
 }
+
+/**
+ * Fetch the full graph from the backend.
+ * Returns DB-backed graph with all nodes, edges, and statistics.
+ */
+export type GraphApiResponse = {
+  success: boolean;
+  data: {
+    nodes: Array<{
+      id: string;
+      type: string;
+      data: Record<string, unknown>;
+      label?: string;
+    }>;
+    edges: Array<{
+      source: string;
+      target: string;
+      type: string;
+      label?: string;
+    }>;
+    stats?: {
+      totalNodes: number;
+      totalEdges: number;
+      nodeBreakdown: Record<string, number>;
+      edgeBreakdown: Record<string, number>;
+    };
+  };
+  timestamp: string;
+  error?: string;
+};
+
+export async function getGraph(): Promise<GraphApiResponse> {
+  return apiCall<GraphApiResponse>('/graph', {
+    method: 'GET',
+  });
+}
