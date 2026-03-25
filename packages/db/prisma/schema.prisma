@@ -1,0 +1,77 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model BusinessPartner {
+  id     String       @id
+  name   String?
+  orders SalesOrder[]
+}
+
+model SalesOrder {
+  id         String            @id
+  customerId String?
+  customer   BusinessPartner?  @relation(fields: [customerId], references: [id])
+  items      SalesOrderItem[]
+  createdAt  DateTime?
+
+  @@index([customerId])
+}
+
+model SalesOrderItem {
+  id        String  @id
+  orderId   String
+  order     SalesOrder @relation(fields: [orderId], references: [id])
+  productId String?
+  quantity  Float?
+
+  @@index([orderId])
+}
+
+model DeliveryItem {
+  id        String  @id
+  deliveryId String
+  orderId   String
+
+  @@index([deliveryId])
+  @@index([orderId])
+}
+
+model BillingDocument {
+  id                 String  @id
+  accountingDocument String?
+
+  @@index([accountingDocument])
+}
+
+model BillingItem {
+  id         String @id
+  billingId  String
+  deliveryId String
+
+  @@index([billingId])
+  @@index([deliveryId])
+}
+
+model JournalEntry {
+  id                 String @id
+  accountingDocument String
+
+  @@index([accountingDocument])
+}
+
+model Payment {
+  id                 String  @id
+  accountingDocument String
+  amount             Float?
+
+  @@index([accountingDocument])
+}

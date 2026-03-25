@@ -1,0 +1,42 @@
+{
+  "name": "api",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "ts-node-dev --respawn src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "lint": "eslint src --ext .ts",
+    "verify": "ts-node scripts/verify.ts",
+    "analyze": "ts-node scripts/analyzeDataset.ts",
+    "validate:flows": "ts-node scripts/validateFlows.ts",
+    "graph:contract": "ts-node scripts/verifyGraphContract.ts",
+    "query:verify": "ts-node scripts/verifyQueryApi.ts",
+    "query:examples": "ts-node scripts/runQueryExamples.ts",
+    "query:primitives": "ts-node scripts/verifyTraversalPrimitives.ts",
+    "query:execute": "ts-node scripts/verifyQueryExecution.ts",
+    "query:failures": "ts-node scripts/verifyQueryFailures.ts",
+    "query:real": "ts-node scripts/verifyRealQueries.ts",
+    "ingest": "ts-node src/ingestion/ingestToDb.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.7.0",
+    "cors": "^2.8.5",
+    "db": "workspace:*",
+    "express": "^4.18.0",
+    "graph": "workspace:*",
+    "llm": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.0",
+    "@types/express": "^4.17.0",
+    "@types/node": "^20.0.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.0.0",
+    "ts-node": "^10.9.2",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.3.0"
+  }
+}
