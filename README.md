@@ -236,6 +236,192 @@ All core type definitions are exported from shared packages:
 - Advanced caching strategies
 - Performance optimization for large graphs
 
+## Deployment
+
+This monorepo is designed for split deployment: the API on Render and the web frontend on Vercel, with PostgreSQL on Render or Neon.
+
+### Production Architecture
+
+```
+┌─────────────────────┐
+│   Vercel (Web)      │
+│   Next.js Frontend  │
+│  (apps/web)         │
+└──────────┬──────────┘
+           │ NEXT_PUBLIC_API_URL
+           │
+┌──────────▼──────────┐
+│   Render (API)      │
+│  Express.js Server  │
+│   (apps/api)        │
+└──────────┬──────────┘
+           │
+┌──────────▼──────────────────┐
+│  Render Postgres / Neon     │
+│  (Managed PostgreSQL)       │
+└─────────────────────────────┘
+```
+
+### Prerequisites
+
+- **Render Account** (render.com) - for API deployment
+- **Vercel Account** (vercel.com) - for web deployment
+- **PostgreSQL Database** - Render Postgres or Neon (neon.tech)
+- **GitHub** - repository linked to both services for CI/CD
+
+### Deploy API on Render
+
+1. **Prepare Database**:
+   - Create a PostgreSQL database on Render or Neon
+   - Copy the connection string (DATABASE_URL)
+
+2. **Connect Repository to Render**:
+   - Log in to Render
+   - Click "New +" → "Web Service"
+   - Connect your GitHub repository
+   - Select this repository
+
+3. **Configure API Service**:
+   - **Name**: `o2c-graph-api` (or your choice)
+   - **Runtime**: Node
+   - **Build Command**: (automatically populated from `render.yaml`)
+     ```
+     pnpm install --frozen-lockfile && pnpm --filter db generate && pnpm --filter graph build && pnpm --filter llm build && pnpm --filter api build
+     ```
+   - **Start Command**: (automatically populated from `render.yaml`)
+     ```
+     pnpm --filter api start
+     ```
+   - **Environment Variables**:
+     - `NODE_ENV`: `production`
+     - `PORT`: `4000`
+     - `DATABASE_URL`: (paste your Postgres connection string)
+     - `LLM_API_KEY`: (if using real LLM service)
+     - `LLM_MODEL`: `gpt-4` (or your chosen model)
+
+4. **Run Migrations**:
+   - After first deployment, manually run in Render shell:
+     ```
+     pnpm --filter db migrate:prod
+     ```
+   - Or add pre-deploy script to `render.yaml` if Render supports it
+
+5. **Ingest Data** (Optional):
+   - Connect to Render shell and run:
+     ```
+     pnpm --filter api ingest
+     ```
+   - This populates the database with example O2C data
+
+6. **Verify Deployment**:
+   - Check health: `GET {your-render-url}/health`
+   - Verify graph: `GET {your-render-url}/graph`
+   - Save your API URL (e.g., `https://o2c-graph-api.onrender.com`)
+
+### Deploy Web on Vercel
+
+1. **Connect Repository to Vercel**:
+   - Log in to Vercel
+   - Click "Add New..." → "Project"
+   - Import your GitHub repository
+   - Select this repository
+
+2. **Configure Web App**:
+   - **Framework Preset**: Next.js (should auto-detect)
+   - **Root Directory**: `./apps/web`
+   - **Build Command**: `pnpm --filter web build`
+   - **Install Command**: `pnpm install --frozen-lockfile`
+
+3. **Set Environment Variables**:
+   - `NEXT_PUBLIC_API_URL`: Your Render API URL (e.g., `https://o2c-graph-api.onrender.com`)
+
+4. **Deploy**:
+   - Click "Deploy"
+   - Vercel will build and deploy your Next.js app
+   - Save your web URL (e.g., `https://o2c-graph-app.vercel.app`)
+
+### Environment Variables
+
+#### API Server (`apps/api`)
+
+| Variable | Required | Example | Notes |
+|----------|----------|---------|-------|
+| `DATABASE_URL` | Yes | `postgresql://user:pwd@host:5432/graph_db` | PostgreSQL connection string |
+| `NODE_ENV` | Yes | `production` | Set to `production` in Render |
+| `PORT` | No | `4000` | Default: 4000 |
+| `LLM_API_KEY` | No | `sk-...` | Only if using real LLM service |
+| `LLM_MODEL` | No | `gpt-4` | Only if using real LLM service |
+
+#### Web Frontend (`apps/web`)
+
+| Variable | Required | Example | Notes |
+|----------|----------|---------|-------|
+| `NEXT_PUBLIC_API_URL` | Yes | `https://o2c-graph-api.onrender.com` | Must be public; accessible from browser |
+
+### Database Setup
+
+1. **Create PostgreSQL Database**:
+   - **Render Postgres**: Use Render dashboard to create a PostgreSQL instance
+   - **Neon**: Use Neon dashboard to create a project and database
+   - Copy the connection string (DATABASE_URL)
+
+2. **Run Migrations**:
+   ```bash
+   # Local development
+   pnpm --filter db migrate:prod
+   
+   # Or via Render shell after deployment
+   pnpm --filter db migrate:prod
+   ```
+
+3. **Ingest Example Data** (Optional):
+   ```bash
+   # Local development
+   pnpm --filter api ingest
+   
+   # Or via Render shell
+   pnpm --filter api ingest
+   ```
+
+### Post-Deploy Checklist
+
+After deploying both API and web app, verify everything works:
+
+- **API Health**
+  - [ ] `GET {api-url}/health` returns `{ "status": "ok" }`
+  - [ ] Response time < 200ms
+
+- **Graph Inspection**
+  - [ ] `GET {api-url}/graph` returns graph statistics
+  - [ ] Response includes `data.totalNodes` and `data.totalEdges`
+
+- **Query Execution**
+  - [ ] `POST {api-url}/query` accepts structured query
+  - [ ] `POST {api-url}/query/nl` accepts natural language query
+
+- **Frontend Connectivity**
+  - [ ] Web app loads at `{web-url}`
+  - [ ] Query panel submits queries successfully
+  - [ ] Graph panel displays graph data
+  - [ ] Results render without errors
+
+- **Database Integrity**
+  - [ ] Database contains data after ingestion
+  - [ ] Health endpoint shows connection: `{ "status": "ok" }`
+
+### Rolling Back
+
+If you need to roll back a deployment:
+
+- **Render**: Navigate to "Deploys" tab, click previous successful deploy, click "Redeploy"
+- **Vercel**: Navigate to "Deployments" tab, click previous successful deploy, click "Redeploy"
+
+### Monitoring
+
+- **Render**: Check "Logs" tab for API errors
+- **Vercel**: Check "Analytics" and "Functions" tabs for frontend issues
+- **Database**: Check query logs in Render Postgres or Neon console
+
 ## License
 
 TBD
