@@ -9,7 +9,7 @@ export default function GraphPanel() {
   const [graphData, setGraphData] = useState<GraphApiResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<ViewMode>('summary');
+  const [viewMode, setViewMode] = useState<ViewMode>('nodes');
   const [sampleSize, setSampleSize] = useState(5);
 
   // Node filtering
@@ -19,6 +19,9 @@ export default function GraphPanel() {
   // Edge filtering
   const [edgeSearch, setEdgeSearch] = useState('');
   const [edgeTypeFilter, setEdgeTypeFilter] = useState<string | null>(null);
+
+  // Selected node inspection
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
 
   const fetchGraph = async () => {
     setLoading(true);
@@ -74,6 +77,31 @@ export default function GraphPanel() {
       return matchesSearch && matchesType;
     });
   }, [graphData?.data.edges, edgeSearch, edgeTypeFilter]);
+
+  // Get selected node and its neighborhood
+  const selectedNode = useMemo(() => {
+    if (!selectedNodeId || !graphData?.data.nodes) return null;
+    return graphData.data.nodes.find((n) => n.id === selectedNodeId) || null;
+  }, [selectedNodeId, graphData?.data.nodes]);
+
+  const neighborhood = useMemo(() => {
+    if (!selectedNodeId || !graphData?.data.edges) {
+      return { outbound: [], inbound: [], neighbors: [] };
+    }
+
+    const outbound = graphData.data.edges.filter((e) => e.source === selectedNodeId);
+    const inbound = graphData.data.edges.filter((e) => e.target === selectedNodeId);
+
+    const neighborIds = new Set<string>();
+    outbound.forEach((e) => neighborIds.add(e.target));
+    inbound.forEach((e) => neighborIds.add(e.source));
+
+    const neighbors = graphData.data.nodes.filter(
+      (n) => neighborIds.has(n.id)
+    );
+
+    return { outbound, inbound, neighbors };
+  }, [selectedNodeId, graphData?.data.edges, graphData?.data.nodes]);
 
   return (
     <div className="w-1/2 border-r border-gray-200 bg-gray-50 p-6 overflow-y-auto flex flex-col">
@@ -187,6 +215,143 @@ export default function GraphPanel() {
           {/* Nodes Tab */}
           {viewMode === 'nodes' && (
             <div className="space-y-3">
+              {/* Selected Node Inspection */}
+              {selectedNode && (
+                <div className="space-y-3 rounded border border-green-300 bg-green-50 p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm font-medium text-green-900">Selected Node</div>
+                    <button
+                      onClick={() => setSelectedNodeId(null)}
+                      className="px-2 py-0.5 rounded bg-green-200 text-green-800 hover:bg-green-300 text-xs font-medium"
+                    >
+                      Clear
+                    </button>
+                  </div>
+
+                  {/* Node Details */}
+                  <div className="rounded bg-white p-3 space-y-1">
+                    <div>
+                      <span className="text-xs font-medium text-gray-900">ID:</span>
+                      <div className="font-mono text-xs text-gray-700 mt-0.5">{selectedNode.id}</div>
+                    </div>
+                    <div>
+                      <span className="text-xs font-medium text-gray-900">Type:</span>
+                      <div className="font-mono text-xs text-gray-700 mt-0.5">{selectedNode.type}</div>
+                    </div>
+                    {selectedNode.label && (
+                      <div>
+                        <span className="text-xs font-medium text-gray-900">Label:</span>
+                        <div className="text-xs text-gray-700 mt-0.5">{selectedNode.label}</div>
+                      </div>
+                    )}
+                    {Object.keys(selectedNode.data).length > 0 && (
+                      <div>
+                        <span className="text-xs font-medium text-gray-900 block mb-1">Data:</span>
+                        <div className="text-xs text-gray-700 font-mono">
+                          {Object.entries(selectedNode.data)
+                            .slice(0, 5)
+                            .map(([k, v]) => (
+                              <div key={k} className="truncate">
+                                {k}: {String(v).slice(0, 50)}
+                              </div>
+                            ))}
+                          {Object.keys(selectedNode.data).length > 5 && (
+                            <div className="text-gray-600 italic">
+                              +{Object.keys(selectedNode.data).length - 5} more
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Neighborhood */}
+                  <div className="space-y-2">
+                    {/* Outbound */}
+                    {neighborhood.outbound.length > 0 && (
+                      <div className="rounded bg-white p-2 space-y-1">
+                        <div className="text-xs font-medium text-purple-900">
+                          Outbound ({neighborhood.outbound.length})
+                        </div>
+                        <div className="space-y-0.5">
+                          {neighborhood.outbound.map((edge, idx) => {
+                            const targetNode = graphData!.data.nodes.find(
+                              (n) => n.id === edge.target
+                            );
+                            return (
+                              <div
+                                key={idx}
+                                className="text-xs font-mono text-gray-700 hover:bg-gray-50 p-1 rounded cursor-pointer"
+                              >
+                                <div className="flex items-center gap-1">
+                                  <span className="text-gray-600">→</span>
+                                  <span className="text-purple-600 font-medium">{edge.type}</span>
+                                  <span className="text-gray-600">→</span>
+                                </div>
+                                <button
+                                  onClick={() => setSelectedNodeId(edge.target)}
+                                  className="text-blue-600 hover:underline break-all text-left"
+                                >
+                                  {edge.target}
+                                </button>
+                                {targetNode?.label && (
+                                  <div className="text-xs text-gray-600">
+                                    ({targetNode.label})
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Inbound */}
+                    {neighborhood.inbound.length > 0 && (
+                      <div className="rounded bg-white p-2 space-y-1">
+                        <div className="text-xs font-medium text-orange-900">
+                          Inbound ({neighborhood.inbound.length})
+                        </div>
+                        <div className="space-y-0.5">
+                          {neighborhood.inbound.map((edge, idx) => {
+                            const sourceNode = graphData!.data.nodes.find(
+                              (n) => n.id === edge.source
+                            );
+                            return (
+                              <div
+                                key={idx}
+                                className="text-xs font-mono text-gray-700 hover:bg-gray-50 p-1 rounded cursor-pointer"
+                              >
+                                <button
+                                  onClick={() => setSelectedNodeId(edge.source)}
+                                  className="text-blue-600 hover:underline break-all text-left"
+                                >
+                                  {edge.source}
+                                </button>
+                                {sourceNode?.label && (
+                                  <div className="text-xs text-gray-600">
+                                    ({sourceNode.label})
+                                  </div>
+                                )}
+                                <div className="flex items-center gap-1">
+                                  <span className="text-gray-600">→</span>
+                                  <span className="text-orange-600 font-medium">{edge.type}</span>
+                                  <span className="text-gray-600">→</span>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {neighborhood.outbound.length === 0 && neighborhood.inbound.length === 0 && (
+                      <div className="text-xs text-gray-600 italic">No connections</div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Node Filters */}
               <div className="rounded border border-gray-300 bg-white p-3 space-y-2">
                 <div className="flex gap-2">
@@ -266,7 +431,15 @@ export default function GraphPanel() {
                   </div>
                 ) : (
                   filteredNodes.slice(0, sampleSize).map((node) => (
-                    <div key={node.id} className="rounded border border-gray-300 bg-white p-3">
+                    <div
+                      key={node.id}
+                      onClick={() => setSelectedNodeId(node.id)}
+                      className={`rounded border p-3 cursor-pointer transition ${
+                        selectedNodeId === node.id
+                          ? 'border-green-300 bg-green-50 shadow-md'
+                          : 'border-gray-300 bg-white hover:border-blue-300 hover:bg-blue-50'
+                      }`}
+                    >
                       <div className="font-mono text-xs text-blue-600 mb-1">{node.id}</div>
                       <div className="flex gap-2 text-xs mb-2">
                         <span className="inline-block px-2 py-0.5 rounded bg-gray-100 text-gray-700">
