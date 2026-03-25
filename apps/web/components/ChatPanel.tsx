@@ -352,6 +352,14 @@ export default function ChatPanel() {
                       {response.translation.query?.intent}
                     </span>
                   </div>
+                  {response.translation.query?.targetNodeType && (
+                    <div>
+                      <span className="font-medium text-green-800">Target:</span>{' '}
+                      <span className="text-green-700 font-mono text-xs">
+                        {response.translation.query.targetNodeType}
+                      </span>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -410,7 +418,16 @@ export default function ChatPanel() {
                 <div>
                   <span className="font-medium">Start Node:</span>{' '}
                   <span className="text-gray-700">
-                    {response.data.resolvedStartNode?.nodeId || 'N/A'}
+                    {response.data.resolvedStartNode ? (
+                      <span className="font-mono text-xs">
+                        {response.data.resolvedStartNode.type}
+                        {':'}
+                        {response.data.resolvedStartNode.businessId && `${response.data.resolvedStartNode.businessId}:`}
+                        {response.data.resolvedStartNode.nodeId}
+                      </span>
+                    ) : (
+                      'N/A'
+                    )}
                   </span>
                 </div>
                 <div>
@@ -451,6 +468,115 @@ export default function ChatPanel() {
               </>
             )}
           </div>
+
+          {/* Top Matches */}
+          {response.data?.matches && response.data.matches.length > 0 && (
+            <div className="rounded border border-blue-200 bg-blue-50 p-3">
+              <div className="text-sm font-medium text-blue-900 mb-2">
+                Top Matches ({response.data.matches.length})
+              </div>
+              <div className="space-y-2">
+                {response.data.matches.slice(0, 3).map((match: any, idx: number) => (
+                  <div
+                    key={idx}
+                    className="rounded bg-white p-2 border border-blue-100 text-xs space-y-1"
+                  >
+                    <div>
+                      <span className="font-medium text-blue-900">Type:</span>{' '}
+                      <span className="font-mono text-blue-700">{match.type || 'N/A'}</span>
+                    </div>
+                    <div>
+                      <span className="font-medium text-blue-900">Business ID:</span>{' '}
+                      <span className="font-mono text-blue-700">{match.businessId || 'N/A'}</span>
+                    </div>
+                    <div>
+                      <span className="font-medium text-blue-900">Node ID:</span>{' '}
+                      <span className="font-mono text-blue-700">{match.nodeId || 'N/A'}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {response.data.matches.length > 3 && (
+                <div className="text-xs text-blue-600 mt-2 italic">
+                  + {response.data.matches.length - 3} more
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Paths */}
+          {response.data?.paths && response.data.paths.length > 0 && (
+            <div className="rounded border border-purple-200 bg-purple-50 p-3">
+              <div className="text-sm font-medium text-purple-900 mb-2">
+                Paths ({response.data.paths.length})
+              </div>
+              <div className="space-y-2">
+                {response.data.paths.slice(0, 2).map((path: any, idx: number) => (
+                  <div
+                    key={idx}
+                    className="rounded bg-white p-2 border border-purple-100 text-xs space-y-1"
+                  >
+                    <div>
+                      <span className="font-medium text-purple-900">Length:</span>{' '}
+                      <span className="font-mono text-purple-700">
+                        {path.nodeIds ? path.nodeIds.length : 0} nodes
+                      </span>
+                    </div>
+                    <div>
+                      <span className="font-medium text-purple-900">Nodes:</span>
+                      <div className="font-mono text-purple-700 text-xs mt-1 overflow-x-auto">
+                        {path.nodeIds ? path.nodeIds.join(' → ') : 'N/A'}
+                      </div>
+                    </div>
+                    {path.edgeTypes && path.edgeTypes.length > 0 && (
+                      <div>
+                        <span className="font-medium text-purple-900">Edges:</span>
+                        <div className="font-mono text-purple-700 text-xs mt-1">
+                          {path.edgeTypes.join(', ')}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+              {response.data.paths.length > 2 && (
+                <div className="text-xs text-purple-600 mt-2 italic">
+                  + {response.data.paths.length - 2} more
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Missing Flows */}
+          {response.data?.missingFlows && response.data.missingFlows.length > 0 && (
+            <div className="rounded border border-yellow-300 bg-yellow-50 p-3">
+              <div className="text-sm font-medium text-yellow-900 mb-2 flex items-center gap-1">
+                <span>⚠️</span>
+                Missing Flows ({response.data.missingFlows.length})
+              </div>
+              <div className="space-y-2">
+                {response.data.missingFlows.map((flow: any, idx: number) => (
+                  <div
+                    key={idx}
+                    className="rounded bg-white p-2 border border-yellow-200 text-xs space-y-1"
+                  >
+                    <div>
+                      <span className="font-medium text-yellow-900">Expected Node Type:</span>
+                      <div className="font-mono text-yellow-700 mt-1">
+                        {flow.expectedNodeType || 'N/A'}
+                      </div>
+                    </div>
+                    {flow.reason && (
+                      <div>
+                        <span className="font-medium text-yellow-900">Reason:</span>
+                        <div className="text-yellow-800 mt-1">{flow.reason}</div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Full JSON (collapsible/debug) */}
           <details className="text-xs">
