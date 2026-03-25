@@ -109,21 +109,36 @@ export default function ChatPanel() {
 
   const selectedPreset = QUERY_PRESETS.find((p) => p.id === selectedPresetId);
 
+  const handleModeChange = (mode: QueryMode) => {
+    setQueryMode(mode);
+    // Clear stale mode-specific validation messages when switching modes
+    setError(null);
+    setParseError(null);
+  };
+
   const handlePresetSelect = (presetId: string) => {
     const preset = QUERY_PRESETS.find((p) => p.id === presetId);
     if (preset) {
       setSelectedPresetId(presetId);
       setQueryText(JSON.stringify(preset.payload, null, 2));
+      // Clear stale response when selecting a new preset
+      setResponse(null);
+      setError(null);
+      setParseError(null);
     }
   };
 
   const handleExampleSelect = (exampleText: string) => {
     setNlInput(exampleText);
+    // Clear stale response when selecting a new example
+    setResponse(null);
+    setError(null);
   };
 
   const handleResetToPreset = () => {
     if (selectedPreset) {
       setQueryText(JSON.stringify(selectedPreset.payload, null, 2));
+      setParseError(null);
     }
   };
 
@@ -136,6 +151,24 @@ export default function ChatPanel() {
       setParseError(`JSON Parse Error: ${errorMsg}`);
       return null;
     }
+  };
+
+  const isStructuredInputValid = (): boolean => {
+    try {
+      JSON.parse(queryText);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  const isNlInputValid = (): boolean => {
+    return nlInput.trim().length > 0;
+  };
+
+  const handleClearResponse = () => {
+    setResponse(null);
+    setError(null);
   };
 
   const handleRunQuery = async () => {
@@ -180,14 +213,17 @@ export default function ChatPanel() {
 
   return (
     <div className="w-1/2 bg-white p-6 overflow-y-auto flex flex-col">
-      <h1 className="text-2xl font-semibold text-gray-900">Query</h1>
+      <div className="flex flex-col gap-1">
+        <h1 className="text-2xl font-semibold text-gray-900">Query</h1>
+        <p className="text-xs text-gray-600">Deterministic query runner</p>
+      </div>
 
       {/* Mode Switch */}
       <div className="mt-4 flex gap-2">
         {(['Structured', 'Natural Language'] as const).map((mode) => (
           <button
             key={mode}
-            onClick={() => setQueryMode(mode)}
+            onClick={() => handleModeChange(mode)}
             className={`px-3 py-1 rounded text-sm font-medium transition ${
               queryMode === mode
                 ? 'bg-blue-600 text-white'
@@ -202,6 +238,11 @@ export default function ChatPanel() {
       {/* Structured Mode */}
       {queryMode === 'Structured' && (
         <>
+          {/* Mode Helper */}
+          <div className="mt-4 rounded border border-gray-200 bg-gray-50 p-3 text-xs text-gray-700">
+            Structured mode gives you full control over the query. Select a preset or manually edit the JSON.
+          </div>
+
           {/* Presets */}
           <div className="mt-4 flex flex-col gap-2">
             <label className="text-sm font-medium text-gray-700">Presets</label>
@@ -247,7 +288,7 @@ export default function ChatPanel() {
             <div className="flex gap-2">
               <button
                 onClick={handleRunQuery}
-                disabled={loading}
+                disabled={loading || !isStructuredInputValid()}
                 className="rounded bg-blue-600 px-4 py-2 text-white font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex-1"
               >
                 {loading ? 'Running...' : 'Run Query'}
@@ -269,7 +310,10 @@ export default function ChatPanel() {
         <>
           {/* Supported Scope Guidance */}
           <div className="mt-4 rounded border border-blue-200 bg-blue-50 p-3 text-sm">
-            <div className="font-medium text-blue-900 mb-2">Supported Today</div>
+            <div className="font-medium text-blue-900 mb-2">Supported Patterns</div>
+            <div className="text-blue-800 text-xs mb-2">
+              Natural Language mode translates entered text to structured queries using a whitelist of patterns.
+            </div>
             <ul className="text-blue-800 space-y-1 text-xs">
               <li>• Payment for a specific order</li>
               <li>• Delivery for a specific order</li>
@@ -315,7 +359,7 @@ export default function ChatPanel() {
             />
             <button
               onClick={handleRunQuery}
-              disabled={loading}
+              disabled={loading || !isNlInputValid()}
               className="rounded bg-blue-600 px-4 py-2 text-white font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? 'Running...' : 'Run Query'}
@@ -335,7 +379,16 @@ export default function ChatPanel() {
       {/* Response Summary */}
       {response && (
         <div className="mt-4 flex-1 flex flex-col gap-2 overflow-y-auto">
-          <div className="text-sm font-medium text-gray-700">Response</div>
+          <div className="flex items-center justify-between">
+            <div className="text-sm font-medium text-gray-700">Response</div>
+            <button
+              onClick={handleClearResponse}
+              className="text-xs px-2 py-1 rounded bg-gray-200 text-gray-800 hover:bg-gray-300"
+              title="Clear response"
+            >
+              Clear
+            </button>
+          </div>
 
           {/* Translation Metadata (for NL mode) */}
           {'translation' in response && response.translation && (
