@@ -95,7 +95,11 @@ const NL_EXAMPLES = [
 const DEFAULT_PRESET = QUERY_PRESETS[1]; // Order -> Payment
 type QueryMode = 'Structured' | 'Natural Language';
 
-export default function ChatPanel() {
+interface ChatPanelProps {
+  onFocusNode?: (nodeId: string) => void;
+}
+
+export default function ChatPanel({ onFocusNode }: ChatPanelProps) {
   const [queryMode, setQueryMode] = useState<QueryMode>('Structured');
   const [selectedPresetId, setSelectedPresetId] = useState(DEFAULT_PRESET.id);
   const [queryText, setQueryText] = useState(
@@ -528,11 +532,13 @@ export default function ChatPanel() {
               <div className="text-sm font-medium text-blue-900 mb-2">
                 Top Matches ({response.data.matches.length})
               </div>
+              <div className="text-xs text-blue-700 mb-2">💡 Click a match to inspect in graph panel</div>
               <div className="space-y-2">
                 {response.data.matches.slice(0, 3).map((match: any, idx: number) => (
                   <div
                     key={idx}
-                    className="rounded bg-white p-2 border border-blue-100 text-xs space-y-1"
+                    onClick={() => onFocusNode?.(match.nodeId)}
+                    className="rounded bg-white p-2 border border-blue-100 text-xs space-y-1 cursor-pointer hover:border-blue-300 hover:shadow-md transition"
                   >
                     <div>
                       <span className="font-medium text-blue-900">Type:</span>{' '}
@@ -563,6 +569,7 @@ export default function ChatPanel() {
               <div className="text-sm font-medium text-purple-900 mb-2">
                 Flow View ({response.data.paths.length})
               </div>
+              <div className="text-xs text-purple-700 mb-2">💡 Click a path node to inspect in graph panel</div>
               <div className="space-y-3">
                 {response.data.paths.slice(0, 2).map((path: any, idx: number) => {
                   const nodeIds = path.nodeIds || [];
@@ -591,12 +598,13 @@ export default function ChatPanel() {
                               <div key={nodeIdx} className="flex items-center gap-1">
                                 {/* Node Pill */}
                                 <div
-                                  className={`px-2 py-1 rounded-full font-mono text-xs whitespace-nowrap border-2 ${
+                                  onClick={() => onFocusNode?.(nodeId)}
+                                  className={`px-2 py-1 rounded-full font-mono text-xs whitespace-nowrap border-2 cursor-pointer transition ${
                                     isStart
-                                      ? 'bg-green-100 border-green-400 text-green-900 font-medium'
+                                      ? 'bg-green-100 border-green-400 text-green-900 font-medium hover:shadow-md hover:border-green-500'
                                       : isEnd
-                                      ? 'bg-red-100 border-red-400 text-red-900 font-medium'
-                                      : 'bg-gray-100 border-gray-300 text-gray-800'
+                                      ? 'bg-red-100 border-red-400 text-red-900 font-medium hover:shadow-md hover:border-red-500'
+                                      : 'bg-gray-100 border-gray-300 text-gray-800 hover:shadow-md hover:border-gray-400'
                                   }`}
                                   title={nodeId}
                                 >

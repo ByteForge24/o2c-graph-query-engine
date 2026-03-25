@@ -5,7 +5,11 @@ import { getGraph, type GraphApiResponse } from '@/lib/api';
 
 type ViewMode = 'summary' | 'nodes' | 'edges';
 
-export default function GraphPanel() {
+interface GraphPanelProps {
+  focusedNodeId?: string | null;
+}
+
+export default function GraphPanel({ focusedNodeId }: GraphPanelProps) {
   const [graphData, setGraphData] = useState<GraphApiResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -39,6 +43,17 @@ export default function GraphPanel() {
   useEffect(() => {
     fetchGraph();
   }, []);
+
+  // Respond to external focus changes from query panel
+  useEffect(() => {
+    if (focusedNodeId && graphData?.data.nodes) {
+      const nodeExists = graphData.data.nodes.find((n) => n.id === focusedNodeId);
+      if (nodeExists) {
+        setSelectedNodeId(focusedNodeId);
+        setViewMode('nodes');
+      }
+    }
+  }, [focusedNodeId, graphData?.data.nodes]);
 
   // Get unique node and edge types
   const nodeTypes = useMemo(() => {
