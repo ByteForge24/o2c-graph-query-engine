@@ -95,11 +95,17 @@ const NL_EXAMPLES = [
 const DEFAULT_PRESET = QUERY_PRESETS[1]; // Order -> Payment
 type QueryMode = 'Structured' | 'Natural Language';
 
-interface ChatPanelProps {
-  onFocusNode?: (nodeId: string) => void;
+interface FocusedPath {
+  nodeIds: string[];
+  edgeTypes: string[];
 }
 
-export default function ChatPanel({ onFocusNode }: ChatPanelProps) {
+interface ChatPanelProps {
+  onFocusNode?: (nodeId: string) => void;
+  onFocusPath?: (path: FocusedPath) => void;
+}
+
+export default function ChatPanel({ onFocusNode, onFocusPath }: ChatPanelProps) {
   const [queryMode, setQueryMode] = useState<QueryMode>('Structured');
   const [selectedPresetId, setSelectedPresetId] = useState(DEFAULT_PRESET.id);
   const [queryText, setQueryText] = useState(
@@ -569,14 +575,18 @@ export default function ChatPanel({ onFocusNode }: ChatPanelProps) {
               <div className="text-sm font-medium text-purple-900 mb-2">
                 Flow View ({response.data.paths.length})
               </div>
-              <div className="text-xs text-purple-700 mb-2">💡 Click a path node to inspect in graph panel</div>
+              <div className="text-xs text-purple-700 mb-2">💡 Click a path node to inspect in graph panel, or click path to highlight it</div>
               <div className="space-y-3">
                 {response.data.paths.slice(0, 2).map((path: any, idx: number) => {
                   const nodeIds = path.nodeIds || [];
                   const edgeTypes = path.edgeTypes || [];
 
                   return (
-                    <div key={idx} className="rounded bg-white p-3 border border-purple-100">
+                    <div
+                      key={idx}
+                      onClick={() => onFocusPath?.({ nodeIds, edgeTypes })}
+                      className="rounded bg-white p-3 border border-purple-100 cursor-pointer hover:border-purple-300 hover:shadow-md transition"
+                    >
                       {/* Path Length Badge */}
                       <div className="flex items-center gap-2 mb-2">
                         <span className="inline-block px-2 py-0.5 rounded-full bg-purple-200 text-purple-800 font-medium text-xs">
@@ -598,7 +608,10 @@ export default function ChatPanel({ onFocusNode }: ChatPanelProps) {
                               <div key={nodeIdx} className="flex items-center gap-1">
                                 {/* Node Pill */}
                                 <div
-                                  onClick={() => onFocusNode?.(nodeId)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onFocusNode?.(nodeId);
+                                  }}
                                   className={`px-2 py-1 rounded-full font-mono text-xs whitespace-nowrap border-2 cursor-pointer transition ${
                                     isStart
                                       ? 'bg-green-100 border-green-400 text-green-900 font-medium hover:shadow-md hover:border-green-500'

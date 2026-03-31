@@ -5,11 +5,17 @@ import { getGraph, type GraphApiResponse } from '@/lib/api';
 
 type ViewMode = 'summary' | 'nodes' | 'edges';
 
-interface GraphPanelProps {
-  focusedNodeId?: string | null;
+interface FocusedPath {
+  nodeIds: string[];
+  edgeTypes: string[];
 }
 
-export default function GraphPanel({ focusedNodeId }: GraphPanelProps) {
+interface GraphPanelProps {
+  focusedNodeId?: string | null;
+  focusedPath?: FocusedPath | null;
+}
+
+export default function GraphPanel({ focusedNodeId, focusedPath }: GraphPanelProps) {
   const [graphData, setGraphData] = useState<GraphApiResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -230,6 +236,76 @@ export default function GraphPanel({ focusedNodeId }: GraphPanelProps) {
           {/* Nodes Tab */}
           {viewMode === 'nodes' && (
             <div className="space-y-3">
+              {/* Focused Path Inspection */}
+              {focusedPath && (
+                <div className="space-y-3 rounded border border-blue-300 bg-blue-50 p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm font-medium text-blue-900">Focused Path</div>
+                    <button
+                      onClick={() => {}}
+                      disabled
+                      className="px-2 py-0.5 rounded bg-blue-200 text-blue-800 text-xs font-medium"
+                      title="Clear path from query panel"
+                    >
+                      {focusedPath.nodeIds.length} nodes
+                    </button>
+                  </div>
+
+                  {/* Path Flow Visualization */}
+                  <div className="rounded bg-white p-3 overflow-x-auto">
+                    <div className="flex items-center gap-1 min-w-min">
+                      {focusedPath.nodeIds.map((nodeId: string, nodeIdx: number) => {
+                        const isStart = nodeIdx === 0;
+                        const isEnd = nodeIdx === focusedPath.nodeIds.length - 1;
+
+                        return (
+                          <div key={nodeIdx} className="flex items-center gap-1">
+                            {/* Node Pill */}
+                            <button
+                              onClick={() => setSelectedNodeId(nodeId)}
+                              className={`px-3 py-1.5 rounded-full font-mono text-xs whitespace-nowrap border-2 cursor-pointer transition hover:shadow-md ${
+                                isStart
+                                  ? 'bg-blue-100 border-blue-500 text-blue-900 font-medium'
+                                  : isEnd
+                                  ? 'bg-blue-100 border-blue-500 text-blue-900 font-medium'
+                                  : 'bg-blue-50 border-blue-400 text-blue-800'
+                              } ${selectedNodeId === nodeId ? 'ring-2 ring-blue-600' : ''}`}
+                              title={nodeId}
+                            >
+                              {nodeId.length > 12 ? nodeId.slice(0, 10) + '…' : nodeId}
+                            </button>
+
+                            {/* Arrow + Edge Type */}
+                            {nodeIdx < focusedPath.nodeIds.length - 1 && (
+                              <div className="flex flex-col items-center gap-0.5">
+                                <span className="text-blue-500 font-bold text-xs">→</span>
+                                {focusedPath.edgeTypes[nodeIdx] && (
+                                  <span className="text-xs font-medium text-blue-700 whitespace-nowrap">
+                                    {focusedPath.edgeTypes[nodeIdx]}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Path Stats */}
+                  <div className="rounded bg-white p-2 text-xs space-y-1">
+                    <div className="text-gray-700">
+                      <span className="font-medium">Path Length:</span> {focusedPath.nodeIds.length} nodes, {focusedPath.edgeTypes.length} hop{focusedPath.edgeTypes.length !== 1 ? 's' : ''}
+                    </div>
+                    {focusedPath.nodeIds.length > 0 && (
+                      <div className="text-gray-600 italic font-mono text-xs">
+                        {focusedPath.nodeIds.join(' → ')}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Selected Node Inspection */}
               {selectedNode && (
                 <div className="space-y-3 rounded border border-green-300 bg-green-50 p-4">
@@ -293,19 +369,31 @@ export default function GraphPanel({ focusedNodeId }: GraphPanelProps) {
                             const targetNode = graphData!.data.nodes.find(
                               (n) => n.id === edge.target
                             );
+                            const isInPath = focusedPath &&
+                              selectedNodeId === focusedPath.nodeIds[0] &&
+                              focusedPath.nodeIds.length > 1 &&
+                              edge.target === focusedPath.nodeIds[1];
+
                             return (
                               <div
                                 key={idx}
-                                className="text-xs font-mono text-gray-700 hover:bg-gray-50 p-1 rounded cursor-pointer"
+                                className={`text-xs font-mono text-gray-700 p-1 rounded cursor-pointer transition ${
+                                  isInPath
+                                    ? 'bg-blue-100 border-l-2 border-blue-500'
+                                    : 'hover:bg-gray-50'
+                                }`}
                               >
-                                <div className="flex items-center gap-1">
+                                <div className={`flex items-center gap-1 ${isInPath ? 'text-blue-900 font-medium' : ''}`}>
                                   <span className="text-gray-600">→</span>
-                                  <span className="text-purple-600 font-medium">{edge.type}</span>
+                                  <span className={isInPath ? 'text-blue-700 font-semibold' : 'text-purple-600 font-medium'}>
+                                    {edge.type}
+                                  </span>
                                   <span className="text-gray-600">→</span>
+                                  {isInPath && <span className="text-xs bg-blue-200 text-blue-900 px-1 rounded">in path</span>}
                                 </div>
                                 <button
                                   onClick={() => setSelectedNodeId(edge.target)}
-                                  className="text-blue-600 hover:underline break-all text-left"
+                                  className={`hover:underline break-all text-left ${isInPath ? 'text-blue-700 font-semibold' : 'text-blue-600'}`}
                                 >
                                   {edge.target}
                                 </button>
@@ -332,14 +420,23 @@ export default function GraphPanel({ focusedNodeId }: GraphPanelProps) {
                             const sourceNode = graphData!.data.nodes.find(
                               (n) => n.id === edge.source
                             );
+                            const isInPath = focusedPath &&
+                              selectedNodeId === focusedPath.nodeIds[focusedPath.nodeIds.length - 1] &&
+                              focusedPath.nodeIds.length > 1 &&
+                              edge.source === focusedPath.nodeIds[focusedPath.nodeIds.length - 2];
+
                             return (
                               <div
                                 key={idx}
-                                className="text-xs font-mono text-gray-700 hover:bg-gray-50 p-1 rounded cursor-pointer"
+                                className={`text-xs font-mono text-gray-700 p-1 rounded cursor-pointer transition ${
+                                  isInPath
+                                    ? 'bg-blue-100 border-l-2 border-blue-500'
+                                    : 'hover:bg-gray-50'
+                                }`}
                               >
                                 <button
                                   onClick={() => setSelectedNodeId(edge.source)}
-                                  className="text-blue-600 hover:underline break-all text-left"
+                                  className={`hover:underline break-all text-left ${isInPath ? 'text-blue-700 font-semibold' : 'text-blue-600'}`}
                                 >
                                   {edge.source}
                                 </button>
@@ -348,10 +445,13 @@ export default function GraphPanel({ focusedNodeId }: GraphPanelProps) {
                                     ({sourceNode.label})
                                   </div>
                                 )}
-                                <div className="flex items-center gap-1">
+                                <div className={`flex items-center gap-1 ${isInPath ? 'text-blue-900 font-medium' : ''}`}>
                                   <span className="text-gray-600">→</span>
-                                  <span className="text-orange-600 font-medium">{edge.type}</span>
+                                  <span className={isInPath ? 'text-blue-700 font-semibold' : 'text-orange-600 font-medium'}>
+                                    {edge.type}
+                                  </span>
                                   <span className="text-gray-600">→</span>
+                                  {isInPath && <span className="text-xs bg-blue-200 text-blue-900 px-1 rounded">in path</span>}
                                 </div>
                               </div>
                             );
@@ -445,44 +545,60 @@ export default function GraphPanel({ focusedNodeId }: GraphPanelProps) {
                     No nodes match the filter
                   </div>
                 ) : (
-                  filteredNodes.slice(0, sampleSize).map((node) => (
-                    <div
-                      key={node.id}
-                      onClick={() => setSelectedNodeId(node.id)}
-                      className={`rounded border p-3 cursor-pointer transition ${
-                        selectedNodeId === node.id
-                          ? 'border-green-300 bg-green-50 shadow-md'
-                          : 'border-gray-300 bg-white hover:border-blue-300 hover:bg-blue-50'
-                      }`}
-                    >
-                      <div className="font-mono text-xs text-blue-600 mb-1">{node.id}</div>
-                      <div className="flex gap-2 text-xs mb-2">
-                        <span className="inline-block px-2 py-0.5 rounded bg-gray-100 text-gray-700">
-                          {node.type}
-                        </span>
-                        {node.label && (
-                          <span className="text-gray-600">{node.label}</span>
-                        )}
-                      </div>
-                      {Object.keys(node.data).length > 0 && (
-                        <div className="text-xs text-gray-600 space-y-0.5">
-                          {Object.entries(node.data)
-                            .slice(0, 3)
-                            .map(([key, val]) => (
-                              <div key={key} className="truncate">
-                                <span className="font-medium">{key}:</span>{' '}
-                                {String(val).slice(0, 40)}
-                              </div>
-                            ))}
-                          {Object.keys(node.data).length > 3 && (
-                            <div className="text-gray-500 italic">
-                              +{Object.keys(node.data).length - 3} more fields
-                            </div>
+                  filteredNodes.slice(0, sampleSize).map((node) => {
+                    const isInFocusedPath = focusedPath?.nodeIds.includes(node.id) || false;
+                    const pathIndex = isInFocusedPath ? focusedPath!.nodeIds.indexOf(node.id) : -1;
+                    const isPathStart = pathIndex === 0;
+                    const isPathEnd = pathIndex === focusedPath!.nodeIds.length - 1;
+
+                    return (
+                      <div
+                        key={node.id}
+                        onClick={() => setSelectedNodeId(node.id)}
+                        className={`rounded border p-3 cursor-pointer transition ${
+                          selectedNodeId === node.id
+                            ? 'border-green-300 bg-green-50 shadow-md'
+                            : isInFocusedPath
+                            ? 'border-blue-400 bg-blue-100 shadow-sm'
+                            : 'border-gray-300 bg-white hover:border-blue-300 hover:bg-blue-50'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between mb-1">
+                          <div className="font-mono text-xs text-blue-600">{node.id}</div>
+                          {isInFocusedPath && (
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-blue-200 text-blue-800 font-medium">
+                              {isPathStart ? 'Start' : isPathEnd ? 'End' : `Step ${pathIndex}`}
+                            </span>
                           )}
                         </div>
-                      )}
-                    </div>
-                  ))
+                        <div className="flex gap-2 text-xs mb-2">
+                          <span className="inline-block px-2 py-0.5 rounded bg-gray-100 text-gray-700">
+                            {node.type}
+                          </span>
+                          {node.label && (
+                            <span className="text-gray-600">{node.label}</span>
+                          )}
+                        </div>
+                        {Object.keys(node.data).length > 0 && (
+                          <div className="text-xs text-gray-600 space-y-0.5">
+                            {Object.entries(node.data)
+                              .slice(0, 3)
+                              .map(([key, val]) => (
+                                <div key={key} className="truncate">
+                                  <span className="font-medium">{key}:</span>{' '}
+                                  {String(val).slice(0, 40)}
+                                </div>
+                              ))}
+                            {Object.keys(node.data).length > 3 && (
+                              <div className="text-gray-500 italic">
+                                +{Object.keys(node.data).length - 3} more fields
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
                 )}
               </div>
             </div>
